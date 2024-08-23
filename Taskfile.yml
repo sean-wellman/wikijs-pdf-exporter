@@ -1,0 +1,41 @@
+version: "3"
+env:
+  SITE_PDF_EXPORTER_IMAGE: rasuhcl/wikijs-pdf-export:latest
+  EXPORT_OUTPUT_DIR: ./out
+vars:
+  WIKI_JS_DIR: wikijs
+dotenv: [".env"]
+tasks:
+  up:
+    dir: "{{.WIKI_JS_DIR}}"
+    cmds:
+      - docker compose up -d
+  down:
+    dir: "{{.WIKI_JS_DIR}}"
+    cmds:
+      - docker compose down
+  export:
+    cmds:
+      - defer: rm -rf {{.GQ_OUT_FILE}} {{.MERGED_YAML_FILE}}
+      - |
+        hurl --variable token=$WIKI_API_TOKEN wikijs/pages.hurl  |\
+           jq '.data.pages.list | [.[] | select(.isPublished == true)] | { site: { links: [.[] | "\(.locale)/\(.path)"] } }' |\
+            yq -P > {{.GQ_OUT_FILE}}
+      - yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' config.yml {{.GQ_OUT_FILE}} > {{.MERGED_YAML_FILE}}
+      - cat {{.MERGED_YAML_FILE}}
+      - |
+        docker run -it --env-file ./.env \
+          --rm -v {{.MERGED_YAML_FILE}}:/usr/src/app/config.yml \
+          -v $EXPORT_OUTPUT_DIR:/usr/src/app/out --cap-add=SYS_ADMIN \
+          --network="host" $SITE_PDF_EXPORTER_IMAGE
+    vars:
+      GQ_OUT_FILE:
+        sh: mktemp "/tmp/file1_$(date +%Y%m%d_%H%M%S).yml"
+      MERGED_YAML_FILE:
+        sh: mktemp "/tmp/file2_$(date +%Y%m%d_%H%M%S).yml"
+    preconditions:
+      - sh: >
+          if [ -z "${WIKI_API_TOKEN+x}" ]; then
+            exit 1;
+          fi
+        msg: "WIKI_API_TOKEN environment variable is not defined"
