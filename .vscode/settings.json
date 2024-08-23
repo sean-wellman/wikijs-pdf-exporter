@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "tmp_config*": true,
+        "wikijs/pg_data": true
+    }
+}

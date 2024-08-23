@@ -8,7 +8,7 @@ services:
     logging:
       driver: "none"
     volumes:
-      - ./pg_data:/var/lib/postgresql/data
+      - ${WIKI_JS_EXAMPLE_DIR:-.}/pg_data:/var/lib/postgresql/data
 
   wiki:
     image: ghcr.io/requarks/wiki:2.5.30@sha256:1aae39563cf15d8cfc6371b6d33805653d9348a1af944a8be4501db36f120b84
@@ -23,6 +23,3 @@ services:
       - "3000:3000"
     depends_on:
       - db
-
-volumes:
-  pg_vol:

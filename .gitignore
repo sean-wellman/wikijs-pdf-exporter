@@ -1,4 +1,7 @@
 wikijs/pg_data
 demo
 .env
+!wikijs/.env
 out
+tmp_config*
+**/.DS_Store

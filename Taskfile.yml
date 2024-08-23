@@ -1,41 +1,43 @@
 version: "3"
 env:
   SITE_PDF_EXPORTER_IMAGE: rasuhcl/wikijs-pdf-export:latest
-  EXPORT_OUTPUT_DIR: ./out
 vars:
-  WIKI_JS_DIR: wikijs
+  WS_DIR: '{{.LOCAL_WORKSPACE_FOLDER | default "."}}'
+  WIKI_DIR: wikijs
+  WIKI_BASE_URL: '{{.WIKI_BASE_URL | default "http://localhost:3000" }}'
 dotenv: [".env"]
 tasks:
-  up:
-    dir: "{{.WIKI_JS_DIR}}"
-    cmds:
-      - docker compose up -d
-  down:
-    dir: "{{.WIKI_JS_DIR}}"
-    cmds:
-      - docker compose down
   export:
     cmds:
       - defer: rm -rf {{.GQ_OUT_FILE}} {{.MERGED_YAML_FILE}}
       - |
-        hurl --variable token=$WIKI_API_TOKEN wikijs/pages.hurl  |\
+        gq {{.WIKI_BASE_URL}}/graphql -H "Authorization: Bearer $WIKI_API_TOKEN" \
+          -q '{ pages { list(orderBy: ID) { path locale isPublished } } }' |\
            jq '.data.pages.list | [.[] | select(.isPublished == true)] | { site: { links: [.[] | "\(.locale)/\(.path)"] } }' |\
             yq -P > {{.GQ_OUT_FILE}}
+      - echo "Fetched Links:" && cat {{.GQ_OUT_FILE}}
       - yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' config.yml {{.GQ_OUT_FILE}} > {{.MERGED_YAML_FILE}}
-      - cat {{.MERGED_YAML_FILE}}
       - |
         docker run -it --env-file ./.env \
-          --rm -v {{.MERGED_YAML_FILE}}:/usr/src/app/config.yml \
-          -v $EXPORT_OUTPUT_DIR:/usr/src/app/out --cap-add=SYS_ADMIN \
+          --rm -v {{.WS_DIR}}/{{.MERGED_YAML_FILE}}:/usr/src/app/config.yml \
+          -v {{.WS_DIR}}/out:/usr/src/app/out --cap-add=SYS_ADMIN \
           --network="host" $SITE_PDF_EXPORTER_IMAGE
     vars:
       GQ_OUT_FILE:
-        sh: mktemp "/tmp/file1_$(date +%Y%m%d_%H%M%S).yml"
+        sh: mktemp "/tmp/config_XXXXXXX$(date +%Y%m%d_%H%M%S).yml"
       MERGED_YAML_FILE:
-        sh: mktemp "/tmp/file2_$(date +%Y%m%d_%H%M%S).yml"
+        sh: mktemp "./tmp_config_XXXXXXX$(date +%Y%m%d_%H%M%S).yml"
     preconditions:
       - sh: >
           if [ -z "${WIKI_API_TOKEN+x}" ]; then
             exit 1;
           fi
         msg: "WIKI_API_TOKEN environment variable is not defined"
+  up:
+    dir: "{{.WIKI_DIR}}"
+    cmds:
+      - docker compose up -d
+  down:
+    dir: "{{.WIKI_DIR}}"
+    cmds:
+      - docker compose down
