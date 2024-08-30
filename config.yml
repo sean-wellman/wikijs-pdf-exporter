@@ -1,5 +1,5 @@
 site:
-  baseUrl: ${WIKI_BASE_URL:-http://localhost:3000}
+  baseUrl: ${WIKI_BASE_URL}
   links:
     - en/home
     - en/page-2

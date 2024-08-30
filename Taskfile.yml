@@ -13,7 +13,7 @@ tasks:
       - |
         docker run -it -e WIKI_BASE_URL="{{.WIKI_BASE_URL}}" -e WIKIJS_JWT_TOKEN=$WIKIJS_JWT_TOKEN \
           --rm -v {{.WS_DIR}}/config.yml:/app/config.yml:ro \
-          -v {{.WS_DIR}}/out:/app/out --network="host" $SITE_PDF_EXPORTER_IMAGE
+          -v {{.WS_DIR}}/out:/app/out --network="host" $SITE_PDF_EXPORTER_IMAGE {{.CLI_ARGS}}
   up:
     cmds:
       - docker compose up -d
