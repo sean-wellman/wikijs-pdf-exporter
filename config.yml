@@ -1,7 +1,8 @@
 site:
-  base_url: ${WIKI_BASE_URL:-http://localhost:3000}
-  # links:
-  #   - en/home
+  baseUrl: ${WIKI_BASE_URL:-http://localhost:3000}
+  links:
+    - en/home
+    - en/page-2
   cookies:
     - key: jwt
       value: ${WIKIJS_JWT_TOKEN}

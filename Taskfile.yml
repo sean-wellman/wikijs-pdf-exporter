@@ -1,43 +1,44 @@
 version: "3"
 env:
-  SITE_PDF_EXPORTER_IMAGE: rasuhcl/wikijs-pdf-export:latest
+  SITE_PDF_EXPORTER_IMAGE: ghcr.io/raje-sh/site-exporter-pdf:latest
+  PG_CONTAINER_NAME: wiki_postgres
 vars:
-  WS_DIR: '{{.LOCAL_WORKSPACE_FOLDER | default "."}}'
-  WIKI_DIR: wikijs
+  WS_DIR: '{{.LWS_DIR | default "."}}'
   WIKI_BASE_URL: '{{.WIKI_BASE_URL | default "http://localhost:3000" }}'
 dotenv: [".env"]
+
 tasks:
-  export:
+  pdf:export:
     cmds:
-      - defer: rm -rf {{.GQ_OUT_FILE}} {{.MERGED_YAML_FILE}}
       - |
-        gq {{.WIKI_BASE_URL}}/graphql -H "Authorization: Bearer $WIKI_API_TOKEN" \
-          -q '{ pages { list(orderBy: ID) { path locale isPublished } } }' |\
-           jq '.data.pages.list | [.[] | select(.isPublished == true)] | { site: { links: [.[] | "\(.locale)/\(.path)"] } }' |\
-            yq -P > {{.GQ_OUT_FILE}}
-      - echo "Fetched Links:" && cat {{.GQ_OUT_FILE}}
-      - yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' config.yml {{.GQ_OUT_FILE}} > {{.MERGED_YAML_FILE}}
-      - |
-        docker run -it --env-file ./.env \
-          --rm -v {{.WS_DIR}}/{{.MERGED_YAML_FILE}}:/usr/src/app/config.yml \
-          -v {{.WS_DIR}}/out:/usr/src/app/out --cap-add=SYS_ADMIN \
-          --network="host" $SITE_PDF_EXPORTER_IMAGE
-    vars:
-      GQ_OUT_FILE:
-        sh: mktemp "/tmp/config_XXXXXXX$(date +%Y%m%d_%H%M%S).yml"
-      MERGED_YAML_FILE:
-        sh: mktemp "./tmp_config_XXXXXXX$(date +%Y%m%d_%H%M%S).yml"
-    preconditions:
-      - sh: >
-          if [ -z "${WIKI_API_TOKEN+x}" ]; then
-            exit 1;
-          fi
-        msg: "WIKI_API_TOKEN environment variable is not defined"
+        docker run -it -e WIKI_BASE_URL="{{.WIKI_BASE_URL}}" -e WIKIJS_JWT_TOKEN=$WIKIJS_JWT_TOKEN \
+          --rm -v {{.WS_DIR}}/config.yml:/app/config.yml:ro \
+          -v {{.WS_DIR}}/out:/app/out --network="host" $SITE_PDF_EXPORTER_IMAGE
   up:
-    dir: "{{.WIKI_DIR}}"
     cmds:
       - docker compose up -d
+      - task: db:import
   down:
-    dir: "{{.WIKI_DIR}}"
     cmds:
-      - docker compose down
+      - task: db:export
+      - docker compose down -v
+  db:import:
+    cmds:
+      - docker compose down wiki
+      - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $DEFAULT_DB_NAME -c '{{.DROP_QUERY}}'"
+      - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $DEFAULT_DB_NAME -c '{{.CREATE_QUERY}}'"
+      - docker container cp $BACKUP_SQL_PATH $PG_CONTAINER_NAME:/backup.sql
+      - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $PG_DB_NAME -f /backup.sql"
+      - docker compose up -d wiki
+    env:
+      DEFAULT_DB_NAME: postgres
+      BACKUP_SQL_PATH: ./backup.sql
+    vars:
+      DROP_QUERY:
+        sh: echo "DROP DATABASE IF EXISTS {{.PG_DB_NAME}};";
+      CREATE_QUERY:
+        sh: echo "CREATE DATABASE {{.PG_DB_NAME}};";
+  db:export:
+    cmds:
+      - docker container exec $PG_CONTAINER_NAME bash -c "pg_dump -U $PG_USR_NAME -d $PG_DB_NAME > /backup.sql"
+      - docker container cp $PG_CONTAINER_NAME:/backup.sql backup.sql
