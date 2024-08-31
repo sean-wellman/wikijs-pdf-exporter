@@ -11,5 +11,14 @@
   "containerEnv": {
     "WIKI_BASE_URL": "http://host.docker.internal:3000"
   },
-  "forwardPorts": [3000]
+  "forwardPorts": [
+    3000
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "mathematic.vscode-pdf"
+      ]
+    }
+  }
 }

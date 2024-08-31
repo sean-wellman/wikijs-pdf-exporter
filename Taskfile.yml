@@ -23,12 +23,13 @@ tasks:
       - task: db:export
       - docker compose down -v
   db:import:
+    silent: true
     cmds:
       - docker compose down wiki
       - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $DEFAULT_DB_NAME -c '{{.DROP_QUERY}}'"
       - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $DEFAULT_DB_NAME -c '{{.CREATE_QUERY}}'"
       - docker container cp $BACKUP_SQL_PATH $PG_CONTAINER_NAME:/backup.sql
-      - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $PG_DB_NAME -f /backup.sql"
+      - docker container exec $PG_CONTAINER_NAME bash -c "psql -U $PG_USR_NAME -d $PG_DB_NAME -f /backup.sql -q -o /dev/null"
       - docker compose up -d wiki
     env:
       DEFAULT_DB_NAME: postgres
