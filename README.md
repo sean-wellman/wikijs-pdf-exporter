@@ -2,13 +2,13 @@
 
 This is a example of exporting wikijs site pages to PDF using [site-exporter-pdf](https://github.com/raje-sh/site-exporter-pdf) tool.
 
-<!-- TODO: Add a gif of the process -->
+https://github.com/user-attachments/assets/4ba551d7-33f3-4a02-bb1f-54457a10d469
 
 ## How to use in Github Codespaces
 
 - Open this repository in [Github Codespaces](https://github.com/codespaces)
 - Update the config.yml file with your wikijs site informations. 
-    - or, you can run the wikijs container provided in this repository by running `task up`.
+    - ~~or, you can run the wikijs container provided in this repository by running `task up`.~~ this may not work as codespaces require github authentication when accessing the site.
 - Update the `.env` file with your [WikiJS JWT token](#how-to-get-the-jwt-token)
 - run `sudo chmod 777 ./out` to allow write access to the `./out` directory.
 - run `task pdf:export` to export the site pages to PDF in the `./out` directory.
